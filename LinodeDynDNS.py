@@ -1,4 +1,5 @@
-#!/usr/bin/python3.1
+#!/usr/bin/python3.2
+
 #
 # Easy Python3 Dynamic DNS
 # By Jed Smith <jed@jedsmith.org> 4/29/2009
@@ -32,12 +33,13 @@
 #                                                                    ^
 # You want 123456. The API key MUST have write access to this resource ID.
 #
-RESOURCE = "000000"
+RESOURCE = "2812189"
+DOMAINID = "112898"
 #
 # Your Linode API key.  You can generate this by going to your profile in the
 # Linode manager.  It should be fairly long.
 #
-KEY = "abcdefghijklmnopqrstuvwxyz"
+KEY = "TwaEFkVk3eXvfk3aziT8lvTQDnH9ClDvfH1UfnuyRS0zttUKJdQkTTtxxAavBxnO"
 #
 # The URI of a Web service that returns your IP address as plaintext.  You are
 # welcome to leave this at the default value and use mine.  If you want to run
@@ -47,7 +49,7 @@ KEY = "abcdefghijklmnopqrstuvwxyz"
 #     header("Content-type: text/plain");
 #     printf("%s", $_SERVER["REMOTE_ADDR"]);
 #
-GETIP = "http://hosted.jedsmith.org/ip.php"
+GETIP = "http://icanhazip.com/"
 #
 # If for some reason the API URI changes, or you wish to send requests to a
 # different URI for debugging reasons, edit this.  {0} will be replaced with the
@@ -57,7 +59,7 @@ API = "https://api.linode.com/api/?api_key={0}&resultFormat=JSON"
 #
 # Comment or remove this line to indicate that you edited the options above.
 #
-exit("Did you edit the options?  vi this file open.")
+# exit("Did you edit the options?  vi this file open.")
 #
 # That's it!
 #
@@ -83,68 +85,70 @@ DEBUG = False
 # STOP EDITING HERE #
 
 try:
-	from json import load
-	from urllib.parse import urlencode
-	from urllib.request import urlretrieve
+    from json import load
+    from urllib.parse import urlencode
+    from urllib.request import urlretrieve
 except Exception as excp:
-	exit("Couldn't import the standard library. Are you running Python 3?")
+    exit("Couldn't import the standard library. Are you running Python 3?")
 
 def execute(action, parameters):
-	# Execute a query and return a Python dictionary.
-	uri = "{0}&action={1}".format(API.format(KEY), action)
-	if parameters and len(parameters) > 0:
-		uri = "{0}&{1}".format(uri, urlencode(parameters))
-	if DEBUG:
-		print("-->", uri)
-	file, headers = urlretrieve(uri)
-	if DEBUG:
-		print("<--", file)
-		print(headers, end="")
-		print(open(file).read())
-		print()
-	json = load(open(file), encoding="utf-8")
-	if len(json["ERRORARRAY"]) > 0:
-		err = json["ERRORARRAY"][0]
-		raise Exception("Error {0}: {1}".format(int(err["ERRORCODE"]),
-			err["ERRORMESSAGE"]))
-	return load(open(file), encoding="utf-8")
+    # Execute a query and return a Python dictionary.
+    uri = "{0}&action={1}".format(API.format(KEY), action)
+    if parameters and len(parameters) > 0:
+        uri = "{0}&{1}".format(uri, urlencode(parameters))
+    if DEBUG:
+        print("-->", uri)
+    file, headers = urlretrieve(uri)
+    if DEBUG:
+        print("<--", file)
+        print(headers, end="")
+        print(open(file).read())
+        print()
+    json = load(open(file), encoding="utf-8")
+    if len(json["ERRORARRAY"]) > 0:
+        err = json["ERRORARRAY"][0]
+        raise Exception("Error {0}: {1}".format(int(err["ERRORCODE"]),
+            err["ERRORMESSAGE"]))
+    return load(open(file), encoding="utf-8")
 
 def ip():
-	if DEBUG:
-		print("-->", GETIP)
-	file, headers = urlretrieve(GETIP)
-	if DEBUG:
-		print("<--", file)
-		print(headers, end="")
-		print(open(file).read())
-		print()
-	return open(file).read().strip()
+    if DEBUG:
+        print("-->", GETIP)
+    file, headers = urlretrieve(GETIP)
+    if DEBUG:
+        print("<--", file)
+        print(headers, end="")
+        print(open(file).read())
+        print()
+    return open(file).read().strip()
 
 def main():
-	try:
-		res = execute("domainResourceGet", {"ResourceID": RESOURCE})["DATA"]
-		if(len(res)) == 0:
-			raise Exception("No such resource?".format(RESOURCE))
-		public = ip()
-		if res["TARGET"] != public:
-			old = res["TARGET"]
-			request = {
-				"ResourceID": res["RESOURCEID"],
-				"DomainID": res["DOMAINID"],
-				"Name": res["NAME"],
-				"Type": res["TYPE"],
-				"Target": public,
-				"TTL_Sec": res["TTL_SEC"]
-			}
-			execute("domainResourceSave", request)
-			print("OK {0} -> {1}".format(old, public))
-			return 1
-		else:
-			print("OK")
-			return 0
-	except Exception as excp:
-		print("FAIL {0}: {1}".format(type(excp).__name__, excp))
-		return 2
+    try:
+        res = execute("domainResourceGet", {"ResourceID": RESOURCE, "DomainID": DOMAINID})["DATA"]
+        if isinstance(res, list):
+            res = res[0]
+        if(len(res)) == 0:
+            raise Exception("No such resource?".format(RESOURCE))
+        public = ip()
+        if res["TARGET"] != public:
+            old = res["TARGET"]
+            request = {
+                "ResourceID": res["RESOURCEID"],
+                "DomainID": res["DOMAINID"],
+                "Name": res["NAME"],
+                "Type": res["TYPE"],
+                "Target": public,
+                "TTL_Sec": res["TTL_SEC"]
+            }
+            execute("domainResourceSave", request)
+            print("OK {0} -> {1}".format(old, public))
+            return 1
+        else:
+            print("OK")
+            return 0
+    except Exception as excp:
+        print("FAIL {0}: {1}".format(type(excp).__name__, excp))
+        return 2
 
 if __name__ == "__main__":
-	exit(main())
+    exit(main())
